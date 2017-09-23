@@ -1,0 +1,5 @@
+Model/obj
+Model/bin
+.idea
+.DS_Store
+Model/project.packagespec.json

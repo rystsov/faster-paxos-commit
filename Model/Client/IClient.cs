@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace Model.Client
@@ -14,7 +15,8 @@ namespace Model.Client
         /// <returns>A hashmap formed by a teh stored procedure</returns>
         /// <exception cref="TxUnknownException">Unknown error, see the TxID to fetch the tx's status</exception>
         /// <exception cref="TxConflictException">See ConflictingTXs for the list of conflicting TXs</exception>
-        Task<Dictionary<string, string>> ExecuteTx(string name, IEnumerable<string> keys, Dictionary<string, string> args);
+        /// <exception cref="TimeoutException" />
+        Task<Dictionary<string, string>> ExecuteTx(string name, ISet<string> keys, Dictionary<string, string> args, int timeoutMs);
 
         /// <summary>
         /// Fetches a transactions status

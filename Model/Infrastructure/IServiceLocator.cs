@@ -6,5 +6,6 @@ namespace Model.Infrastructure
     {
         string GetShardIdByKey(string key);
         ISet<string> GetAcceptorIDs();
+        string GetRandomProposer();
     }
 }

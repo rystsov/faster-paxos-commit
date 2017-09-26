@@ -120,6 +120,10 @@ namespace Model.Services.Client
 
         public Task AbortTx(string txId)
         {
+            // get a random proposer
+            // send a request
+            // get a tx details
+            // unblock shards
             throw new NotImplementedException();
         }
 

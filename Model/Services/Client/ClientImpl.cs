@@ -21,14 +21,16 @@ namespace Model.Services.Client
             public readonly ISet<string> acks = new HashSet<string>();
             public readonly ISet<string> nacks = new HashSet<string>();
             public readonly ISet<string> acceptors;
+            public readonly ISet<string> shards;
             public readonly Stopwatch stopwatch;
             public bool hasStarted;
             public bool hasFinished;
 
-            public InProgressTx(ISet<string> acceptors, string txId)
+            public InProgressTx(ISet<string> shards, ISet<string> acceptors, string txId)
             {
                 this.txId = txId;
                 this.acceptors = acceptors;
+                this.shards = shards;
                 this.stopwatch = new Stopwatch();
                 this.stopwatch.Start();
                 this.hasStarted = false;
@@ -68,7 +70,11 @@ namespace Model.Services.Client
                 outByShards[shardId].Keys.Add(key);
             }
 
-            var inProgressTx = new InProgressTx(this.locator.GetAcceptorIDs(), txId);
+            var inProgressTx = new InProgressTx(
+                shards: new HashSet<string>(outByShards.Keys), 
+                acceptors: this.locator.GetAcceptorIDs(), 
+                txId: txId
+            );
 
             lock (this.mutex)
             {
@@ -140,7 +146,26 @@ namespace Model.Services.Client
                 
                 ongoing.tcs.SetResult(ongoing.result);
             }
+        }
 
+        public void OnTxConflict(string senderId, TxConflictMessage msg)
+        {
+            lock (this.mutex)
+            {
+                if (!this.ongoing.ContainsKey(msg.TxID)) return;
+                
+                var ongoing = this.ongoing[msg.TxID];
+                
+                lock (ongoing.mutex)
+                {
+                    if (!ongoing.shards.Contains(senderId)) return;
+
+                    ongoing.hasFinished = true;
+                    this.ongoing.Remove(ongoing.txId);
+                }
+                
+                ongoing.tcs.SetException(new TxConflictException(ongoing.txId, new []{ msg.ConflictingTxID }));
+            }
         }
     }
 }

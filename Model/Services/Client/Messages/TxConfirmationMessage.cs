@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace Model.Client.Messages
+namespace Model.Services.Client.Messages
 {
     public class TxConfirmationMessage
     {

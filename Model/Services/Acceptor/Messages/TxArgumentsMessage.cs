@@ -1,7 +1,6 @@
 ﻿using System.Collections.Generic;
-using Model.Shard.Messages;
 
-namespace Model.Acceptor.Messages
+namespace Model.Services.Acceptor.Messages
 {
     public class TxArgumentsMessage
     {

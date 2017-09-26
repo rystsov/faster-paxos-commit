@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Model.Client
+namespace Model.Services.Client.Exceptions
 {
     public class AlreadyCommittedException : Exception
     {

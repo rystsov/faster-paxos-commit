@@ -2,12 +2,13 @@
 using System.Threading.Tasks;
 using System;
 using System.Diagnostics;
-using Model.Acceptor.Messages;
-using Model.Client.Messages;
 using Model.Infrastructure;
-using Model.Shard.Messages;
+using Model.Services.Acceptor.Messages;
+using Model.Services.Client.Exceptions;
+using Model.Services.Client.Messages;
+using Model.Services.Shard.Messages;
 
-namespace Model.Client
+namespace Model.Services.Client
 {
     public class ClientImpl : IClient
     {
@@ -98,7 +99,7 @@ namespace Model.Client
                     if (!inProgressTx.hasFinished)
                     {
                         inProgressTx.hasFinished = true;
-                        inProgressTx.tcs.SetException(new TimeoutException());
+                        inProgressTx.tcs.SetException(new TxUnknownException(txId));
                     }
                 }
             }, timeoutMs);

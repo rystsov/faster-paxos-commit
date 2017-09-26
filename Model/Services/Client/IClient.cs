@@ -1,8 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Model.Services.Client.Exceptions;
 
-namespace Model.Client
+namespace Model.Services.Client
 {
     public interface IClient
     {
@@ -15,7 +16,6 @@ namespace Model.Client
         /// <returns>A hashmap formed by a teh stored procedure</returns>
         /// <exception cref="TxUnknownException">Unknown error, see the TxID to fetch the tx's status</exception>
         /// <exception cref="TxConflictException">See ConflictingTXs for the list of conflicting TXs</exception>
-        /// <exception cref="TimeoutException" />
         Task<Dictionary<string, string>> ExecuteTx(string name, ISet<string> keys, Dictionary<string, string> args, int timeoutMs);
 
         /// <summary>

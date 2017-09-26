@@ -1,4 +1,4 @@
-﻿namespace Model.Client
+﻿namespace Model.Services.Client
 {
     public enum TxStatus
     {

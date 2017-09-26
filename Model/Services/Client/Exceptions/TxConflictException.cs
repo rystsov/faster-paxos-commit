@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace Model.Client
+namespace Model.Services.Client.Exceptions
 {
     public class TxConflictException : Exception
     {

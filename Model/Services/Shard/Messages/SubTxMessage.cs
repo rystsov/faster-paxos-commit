@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace Model.Shard.Messages
+namespace Model.Services.Shard.Messages
 {
     public class SubTxMessage
     {

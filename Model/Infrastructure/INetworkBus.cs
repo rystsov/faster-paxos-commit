@@ -1,5 +1,5 @@
-﻿using Model.Acceptor.Messages;
-using Model.Shard.Messages;
+﻿using Model.Services.Acceptor.Messages;
+using Model.Services.Shard.Messages;
 
 namespace Model.Infrastructure
 {

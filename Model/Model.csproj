@@ -4,6 +4,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Folder Include="Acceptors" />
-    <Folder Include="Proposer" />
+    <Folder Include="Services" />
   </ItemGroup>
 </Project>

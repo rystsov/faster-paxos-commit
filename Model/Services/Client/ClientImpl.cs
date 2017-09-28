@@ -1,7 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 using System;
-using System.Diagnostics;
 using Model.Infrastructure;
 using Model.Services.Acceptor.Messages;
 using Model.Services.Client.Exceptions;
@@ -59,6 +58,24 @@ namespace Model.Services.Client
             }
         }
 
+        private class FetchingTxStatus
+        {
+            public readonly TaskCompletionSource<TxStatus> tcs = new TaskCompletionSource<TxStatus>();
+            public readonly object mutex = new object();
+            public readonly string txId;
+            public readonly string proposerId;
+            public bool hasSent;
+            public bool hasFinished;
+            
+            public FetchingTxStatus(string txId, string proposerId)
+            {
+                this.txId = txId;
+                this.proposerId = proposerId;
+                this.hasSent = false;
+                this.hasFinished = false;
+            }
+        }
+
         private class TxDetails
         {
             public readonly IEnumerable<string> shardIds;
@@ -74,6 +91,7 @@ namespace Model.Services.Client
         private readonly ITimer timer;
         private readonly Dictionary<string, InProgressTx> ongoingTXs = new Dictionary<string, InProgressTx>();
         private readonly Dictionary<string, AbortingTx> abortingTXs = new Dictionary<string, AbortingTx>();
+        private readonly Dictionary<string, FetchingTxStatus> fetchingTXs = new Dictionary<string, FetchingTxStatus>();
         private readonly object mutex = new object();
 
         public ClientImpl(IServiceLocator locator, INetworkBus bus, ITimer timer)
@@ -152,7 +170,7 @@ namespace Model.Services.Client
                 this.abortingTXs.Add(txId, abortingTx);
             }
             
-            this.bus.AbortTx(proposerId, new TxAbort(txId));
+            this.bus.AbortTx(proposerId, new TxAbortMessage(txId));
 
             lock (abortingTx.mutex)
             {
@@ -181,9 +199,37 @@ namespace Model.Services.Client
             }
         }
         
-        public Task<TxStatus> FetchTxStatus(string txId)
+        public Task<TxStatus> FetchTxStatus(string txId, int timeoutMs)
         {
-            throw new NotImplementedException();
+            var proposerId = this.locator.GetRandomProposer();
+            
+            var fetchingTx = new FetchingTxStatus(txId, proposerId);
+
+            lock (this.mutex)
+            {
+                this.fetchingTXs.Add(txId, fetchingTx);
+            }
+            
+            this.bus.FetchTxStatus(proposerId, new FetchTxStatusMessage(txId));
+
+            lock (fetchingTx.mutex)
+            {
+                fetchingTx.hasSent = true;
+            }
+            
+            this.timer.SetTimeout(() =>
+            {
+                lock (fetchingTx.mutex)
+                {
+                    if (!fetchingTx.hasFinished)
+                    {
+                        fetchingTx.hasFinished = true;
+                        fetchingTx.tcs.SetException(new SomeException());
+                    }
+                }
+            }, timeoutMs);
+
+            return fetchingTx.tcs.Task;
         }
         
         public void OnTxConfirmation(string senderId, TxConfirmationMessage msg)
@@ -268,6 +314,26 @@ namespace Model.Services.Client
                 }
                 
                 aborting.tcs.SetException(new AlreadyCommittedException());
+            }
+        }
+
+        public void OnTxStatusFetched(string proposerId, FetchedTxStatusMessage msg)
+        {
+            lock (this.mutex)
+            {
+                if (!this.fetchingTXs.ContainsKey(msg.TxID)) return;
+                
+                var fetching = this.fetchingTXs[msg.TxID];
+                
+                lock (fetching.mutex)
+                {
+                    if (fetching.proposerId != proposerId) return;
+
+                    fetching.hasFinished = true;
+                    this.fetchingTXs.Remove(fetching.txId);
+                }
+                
+                fetching.tcs.SetResult(msg.Status);
             }
         }
     }

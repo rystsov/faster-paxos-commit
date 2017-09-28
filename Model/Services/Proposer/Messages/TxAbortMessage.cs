@@ -2,18 +2,18 @@
 
 namespace Model.Services.Proposer.Messages
 {
-    public class TxAbort
+    public class TxAbortMessage
     {
         public string TxID { get; }
         
-        public TxAbort(string txId)
+        public TxAbortMessage(string txId)
         {
             this.TxID = txId;
         }
 
-        public TxAbort Clone()
+        public TxAbortMessage Clone()
         {
-            return new TxAbort(this.TxID);
+            return new TxAbortMessage(this.TxID);
         }
     }
 }

@@ -32,6 +32,6 @@ namespace Model.Services.Client
         /// <param name="txId">Transactions's ID</param>
         /// <returns>Status</returns>
         /// <exception cref="SomeException">In case of exception retry the request</exception>
-        Task<TxStatus> FetchTxStatus(string txId);
+        Task<TxStatus> FetchTxStatus(string txId, int timeoutMs);
     }
 }

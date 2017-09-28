@@ -44,13 +44,15 @@ namespace Model.Services.Client
         {
             public readonly TaskCompletionSource<TxDetails> tcs = new TaskCompletionSource<TxDetails>();
             public readonly object mutex = new object();
+            public readonly string reqId;
             public readonly string txId;
             public readonly string proposerId;
             public bool hasSent;
             public bool hasFinished;
 
-            public AbortingTx(string txId, string proposerId)
+            public AbortingTx(string reqId, string txId, string proposerId)
             {
+                this.reqId = reqId;
                 this.txId = txId;
                 this.proposerId = proposerId;
                 this.hasSent = false;
@@ -62,13 +64,15 @@ namespace Model.Services.Client
         {
             public readonly TaskCompletionSource<TxStatus> tcs = new TaskCompletionSource<TxStatus>();
             public readonly object mutex = new object();
+            public readonly string reqId;
             public readonly string txId;
             public readonly string proposerId;
             public bool hasSent;
             public bool hasFinished;
             
-            public FetchingTxStatus(string txId, string proposerId)
+            public FetchingTxStatus(string reqId, string txId, string proposerId)
             {
+                this.reqId = reqId;
                 this.txId = txId;
                 this.proposerId = proposerId;
                 this.hasSent = false;
@@ -162,15 +166,16 @@ namespace Model.Services.Client
         public async Task AbortTx(string txId, int timeoutMs)
         {
             var proposerId = this.locator.GetRandomProposer();
+            var reqId = Guid.NewGuid().ToString();
             
-            var abortingTx = new AbortingTx(txId, proposerId);
+            var abortingTx = new AbortingTx(reqId, txId, proposerId);
 
             lock (this.mutex)
             {
-                this.abortingTXs.Add(txId, abortingTx);
+                this.abortingTXs.Add(reqId, abortingTx);
             }
             
-            this.bus.AbortTx(proposerId, new TxAbortMessage(txId));
+            this.bus.AbortTx(proposerId, new TxAbortMessage(reqId, txId));
 
             lock (abortingTx.mutex)
             {
@@ -202,15 +207,16 @@ namespace Model.Services.Client
         public Task<TxStatus> FetchTxStatus(string txId, int timeoutMs)
         {
             var proposerId = this.locator.GetRandomProposer();
+            var reqId = Guid.NewGuid().ToString();
             
-            var fetchingTx = new FetchingTxStatus(txId, proposerId);
+            var fetchingTx = new FetchingTxStatus(reqId, txId, proposerId);
 
             lock (this.mutex)
             {
-                this.fetchingTXs.Add(txId, fetchingTx);
+                this.fetchingTXs.Add(reqId, fetchingTx);
             }
             
-            this.bus.FetchTxStatus(proposerId, new FetchTxStatusMessage(txId));
+            this.bus.FetchTxStatus(proposerId, new FetchTxStatusMessage(reqId, txId));
 
             lock (fetchingTx.mutex)
             {
@@ -281,16 +287,16 @@ namespace Model.Services.Client
         {
             lock (this.mutex)
             {
-                if (!this.abortingTXs.ContainsKey(msg.TxID)) return;
+                if (!this.abortingTXs.ContainsKey(msg.ReqID)) return;
                 
-                var aborting = this.abortingTXs[msg.TxID];
+                var aborting = this.abortingTXs[msg.ReqID];
                 
                 lock (aborting.mutex)
                 {
                     if (aborting.proposerId != proposerId) return;
 
                     aborting.hasFinished = true;
-                    this.abortingTXs.Remove(aborting.txId);
+                    this.abortingTXs.Remove(aborting.reqId);
                 }
                 
                 aborting.tcs.SetResult(new TxDetails(msg.ShardIDs));
@@ -301,16 +307,16 @@ namespace Model.Services.Client
         {
             lock (this.mutex)
             {
-                if (!this.abortingTXs.ContainsKey(msg.TxID)) return;
+                if (!this.abortingTXs.ContainsKey(msg.ReqID)) return;
                 
-                var aborting = this.abortingTXs[msg.TxID];
+                var aborting = this.abortingTXs[msg.ReqID];
                 
                 lock (aborting.mutex)
                 {
                     if (aborting.proposerId != proposerId) return;
 
                     aborting.hasFinished = true;
-                    this.abortingTXs.Remove(aborting.txId);
+                    this.abortingTXs.Remove(aborting.reqId);
                 }
                 
                 aborting.tcs.SetException(new AlreadyCommittedException());
@@ -321,16 +327,16 @@ namespace Model.Services.Client
         {
             lock (this.mutex)
             {
-                if (!this.fetchingTXs.ContainsKey(msg.TxID)) return;
+                if (!this.fetchingTXs.ContainsKey(msg.ReqID)) return;
                 
-                var fetching = this.fetchingTXs[msg.TxID];
+                var fetching = this.fetchingTXs[msg.ReqID];
                 
                 lock (fetching.mutex)
                 {
                     if (fetching.proposerId != proposerId) return;
 
                     fetching.hasFinished = true;
-                    this.fetchingTXs.Remove(fetching.txId);
+                    this.fetchingTXs.Remove(fetching.reqId);
                 }
                 
                 fetching.tcs.SetResult(msg.Status);

@@ -2,24 +2,24 @@
 
 namespace Model.Services.Client.Messages
 {
-    public class TxConfirmationMessage
+    public class TxComittedMessage
     {
         public string TxID { get; }
         public Dictionary<string, string> Result { get; }
 
-        public TxConfirmationMessage(string txId) : this(txId, new Dictionary<string, string>())
+        public TxComittedMessage(string txId) : this(txId, new Dictionary<string, string>())
         {
         }
         
-        public TxConfirmationMessage(string txId, Dictionary<string, string> result)
+        public TxComittedMessage(string txId, Dictionary<string, string> result)
         {
             this.TxID = txId;
             this.Result = result;
         }
 
-        public TxConfirmationMessage Clone()
+        public TxComittedMessage Clone()
         {
-            return new TxConfirmationMessage(
+            return new TxComittedMessage(
                 this.TxID,
                 new Dictionary<string, string>(this.Result)
             );

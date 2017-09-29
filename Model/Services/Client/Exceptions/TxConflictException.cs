@@ -6,12 +6,12 @@ namespace Model.Services.Client.Exceptions
     public class TxConflictException : Exception
     {
         public string TxID { get; }
-        public IEnumerable<string> ConflictingTXs { get; }
+        public Dictionary<string, string> KeyBlockedByTX { get; }
 
-        public TxConflictException(string txId, IEnumerable<string> conflictingTXs)
+        public TxConflictException(string txId, Dictionary<string, string> keyBlockedByTx)
         {
             TxID = txId;
-            ConflictingTXs = conflictingTXs;
+            KeyBlockedByTX = keyBlockedByTx;
         }
     }
 }

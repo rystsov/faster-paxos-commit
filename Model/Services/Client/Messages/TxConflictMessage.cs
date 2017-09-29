@@ -1,19 +1,24 @@
-﻿namespace Model.Services.Client.Messages
+﻿using System.Collections.Generic;
+
+namespace Model.Services.Client.Messages
 {
     public class TxConflictMessage
     {
         public string TxID { get; }
-        public string ConflictingTxID { get; }
+        public Dictionary<string, string> KeyBlockedByTX { get; }
 
-        public TxConflictMessage(string txId, string conflictingTxId)
+        public TxConflictMessage(string txId, Dictionary<string, string> keyBlockedByTx)
         {
             this.TxID = txId;
-            this.ConflictingTxID = conflictingTxId;
+            this.KeyBlockedByTX = keyBlockedByTx;
         }
 
         public TxConflictMessage Clone()
         {
-            return new TxConflictMessage(this.TxID, this.ConflictingTxID);
+            return new TxConflictMessage(
+                txId: this.TxID, 
+                keyBlockedByTx: new Dictionary<string, string>(this.KeyBlockedByTX)
+            );
         }
     }
 }

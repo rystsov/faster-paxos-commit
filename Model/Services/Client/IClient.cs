@@ -33,5 +33,8 @@ namespace Model.Services.Client
         /// <returns>Status</returns>
         /// <exception cref="SomeException">In case of exception retry the request</exception>
         Task<TxStatus> FetchTxStatus(string txId, int timeoutMs);
+
+        /// <exception cref="SomeException">In case of exception retry the request</exception>
+        Task Commit(string txId, Dictionary<string, Dictionary<string, string>> keyValueUpdateByShard, int timeoutMs);
     }
 }

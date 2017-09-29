@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 using System;
+using System.Linq;
 using Model.Infrastructure;
 using Model.Services.Acceptor.Messages;
 using Model.Services.Client.Exceptions;
@@ -90,12 +91,35 @@ namespace Model.Services.Client
             }
         }
 
+        private class CommittingTx
+        {
+            public readonly TaskCompletionSource<bool> tcs = new TaskCompletionSource<bool>();
+            public readonly object mutex = new object();
+            public readonly string reqId;
+            public readonly string txId;
+            public readonly ISet<string> shardIDs;
+            public readonly ISet<string> ack;
+            public bool hasSent;
+            public bool hasFinished;
+
+            public CommittingTx(string reqId, string txId, ISet<string> shardIDs)
+            {
+                this.reqId = reqId;
+                this.txId = txId;
+                this.shardIDs = shardIDs;
+                this.ack = new HashSet<string>();
+                this.hasSent = false;
+                this.hasFinished = false;
+            }
+        }
+
         private readonly IServiceLocator locator;
         private readonly INetworkBus bus;
         private readonly ITimer timer;
         private readonly Dictionary<string, InProgressTx> ongoingTXs = new Dictionary<string, InProgressTx>();
         private readonly Dictionary<string, AbortingTx> abortingTXs = new Dictionary<string, AbortingTx>();
         private readonly Dictionary<string, FetchingTxStatus> fetchingTXs = new Dictionary<string, FetchingTxStatus>();
+        private readonly Dictionary<string, CommittingTx> committingTXs = new Dictionary<string, CommittingTx>();
         private readonly object mutex = new object();
 
         public ClientImpl(IServiceLocator locator, INetworkBus bus, ITimer timer)
@@ -108,20 +132,19 @@ namespace Model.Services.Client
         public Task<Dictionary<string, string>> ExecuteTx(string name, ISet<string> keys, Dictionary<string, string> args, int timeoutMs)
         {
             var txId = Guid.NewGuid().ToString();
-            
-            var outByShards = new Dictionary<string, SubTxMessage>();
-            foreach (var key in keys)
-            {
-                var shardId = this.locator.GetShardIdByKey(key);
-                if (!outByShards.ContainsKey(shardId))
-                {
-                    outByShards.Add(shardId, new SubTxMessage(txId, name));
-                }
-                outByShards[shardId].Keys.Add(key);
-            }
 
+            var shardIDs = new HashSet<string>(keys.Select(this.locator.GetShardIdByKey));
+
+            var shardSubTXs = 
+                from key in keys
+                group key by this.locator.GetShardIdByKey(key)
+                into shard 
+                  let shardId = shard.Key 
+                  let subTx = new ExecuteSubTxMessage(txId, name, new HashSet<string>(shard), shardIDs)
+                select (shardId: shardId, subTx: subTx);
+            
             var inProgressTx = new InProgressTx(
-                shards: new HashSet<string>(outByShards.Keys), 
+                shards: shardIDs, 
                 acceptors: this.locator.GetAcceptorIDs(), 
                 txId: txId
             );
@@ -131,16 +154,16 @@ namespace Model.Services.Client
                 this.ongoingTXs.Add(txId, inProgressTx);
             }
             
-            var argsMsg = new TxArgumentsMessage(txId, args);
+            var argsMsg = new TxArgumentsMessage(txId, name, args, shardIDs);
 
             foreach (var acceptorId in inProgressTx.acceptors)
             {
                 this.bus.SendArguments(acceptorId, argsMsg.Clone());
             }
             
-            foreach (var shardId in outByShards.Keys)
+            foreach (var (shardId, subTx) in shardSubTXs)
             {
-                this.bus.ExecuteSubTx(shardId, outByShards[shardId].Clone());
+                this.bus.ExecuteSubTx(shardId, subTx);
             }
             
             lock (inProgressTx.mutex)
@@ -150,12 +173,19 @@ namespace Model.Services.Client
 
             this.timer.SetTimeout(() =>
             {
-                lock (inProgressTx.mutex)
+                lock (this.mutex)
                 {
-                    if (!inProgressTx.hasFinished)
+                    lock (inProgressTx.mutex)
                     {
-                        inProgressTx.hasFinished = true;
-                        inProgressTx.tcs.SetException(new TxUnknownException(txId));
+                        if (!inProgressTx.hasFinished)
+                        {
+                            inProgressTx.hasFinished = true;
+                            if (this.ongoingTXs.ContainsKey(inProgressTx.txId))
+                            {
+                                this.ongoingTXs.Remove(inProgressTx.txId);
+                            }
+                            inProgressTx.tcs.SetException(new TxUnknownException(txId));
+                        }
                     }
                 }
             }, timeoutMs);
@@ -184,19 +214,26 @@ namespace Model.Services.Client
             
             this.timer.SetTimeout(() =>
             {
-                lock (abortingTx.mutex)
+                lock (this.mutex)
                 {
-                    if (!abortingTx.hasFinished)
+                    lock (abortingTx.mutex)
                     {
-                        abortingTx.hasFinished = true;
-                        abortingTx.tcs.SetException(new TxUnknownException(txId));
+                        if (!abortingTx.hasFinished)
+                        {
+                            abortingTx.hasFinished = true;
+                            if (this.abortingTXs.ContainsKey(abortingTx.reqId))
+                            {
+                                this.abortingTXs.Remove(abortingTx.reqId);
+                            }
+                            abortingTx.tcs.SetException(new TxUnknownException(txId));
+                        }
                     }
                 }
             }, timeoutMs);
 
             var txDetails = await abortingTx.tcs.Task;
             
-            var rollbackMsg = new RollbackTxMessage(txId);
+            var rollbackMsg = new RollbackSubTxMessage(txId);
 
             foreach (var shardId in txDetails.shardIds)
             {
@@ -225,20 +262,97 @@ namespace Model.Services.Client
             
             this.timer.SetTimeout(() =>
             {
-                lock (fetchingTx.mutex)
+                lock (this.mutex)
                 {
-                    if (!fetchingTx.hasFinished)
+                    lock (fetchingTx.mutex)
                     {
-                        fetchingTx.hasFinished = true;
-                        fetchingTx.tcs.SetException(new SomeException());
+                        if (!fetchingTx.hasFinished)
+                        {
+                            fetchingTx.hasFinished = true;
+                            if (this.fetchingTXs.ContainsKey(fetchingTx.reqId))
+                            {
+                                this.fetchingTXs.Remove(fetchingTx.reqId);
+                            }
+                            fetchingTx.tcs.SetException(new SomeException());
+                        }
                     }
                 }
             }, timeoutMs);
 
             return fetchingTx.tcs.Task;
         }
+
+        public async Task Commit(string txId, Dictionary<string, Dictionary<string, string>> keyValueUpdateByShard, int timeoutMs)
+        {
+            var reqId = Guid.NewGuid().ToString();
+            
+            var commitingTx = new CommittingTx(reqId, txId, new HashSet<string>(keyValueUpdateByShard.Keys));
+
+            lock (this.mutex)
+            {
+                this.committingTXs.Add(reqId, commitingTx);
+            }
+
+            foreach (var shardId in keyValueUpdateByShard.Keys)
+            {
+                this.bus.CommitSubTx(shardId, new CommitSubTxMessage(reqId, txId, keyValueUpdateByShard[shardId]));
+            }
+
+            lock (commitingTx.mutex)
+            {
+                commitingTx.hasSent = true;
+            }
+            
+            this.timer.SetTimeout(() =>
+            {
+                lock (this.mutex)
+                {
+                    lock (commitingTx.mutex)
+                    {
+                        if (!commitingTx.hasFinished)
+                        {
+                            commitingTx.hasFinished = true;
+                            if (this.committingTXs.ContainsKey(commitingTx.reqId))
+                            {
+                                this.fetchingTXs.Remove(commitingTx.reqId);
+                            }
+                            commitingTx.tcs.SetException(new SomeException());
+                        }
+                    }
+                }
+            }, timeoutMs);
+
+            await commitingTx.tcs.Task;
+            
+            this.bus.RmTx(this.locator.GetRandomProposer(), new RmTxMessage(txId));
+        }
+
+        public void OnSubTxCommitted(string shardId, SubTxComittedMessage msg)
+        {
+            lock (this.mutex)
+            {
+                if (!this.committingTXs.ContainsKey(msg.ReqID)) return;
+                
+                var commitingTx = this.committingTXs[msg.ReqID];
+                
+                lock (commitingTx.mutex)
+                {
+                    if (!commitingTx.shardIDs.Contains(shardId)) return;
+
+                    commitingTx.ack.Add(shardId);
+                    
+                    if (commitingTx.ack.Count != commitingTx.shardIDs.Count) return;
+                    if (commitingTx.hasFinished) return;
+                    
+                    commitingTx.hasFinished = true;
+                    this.committingTXs.Remove(commitingTx.reqId);
+                }
+                
+                commitingTx.tcs.SetResult(true);
+            }
+        }
         
-        public void OnTxConfirmation(string senderId, TxConfirmationMessage msg)
+        public void OnTxConfirmation(string acceptorId, TxComittedMessage msg)
         {
             lock (this.mutex)
             {
@@ -248,9 +362,9 @@ namespace Model.Services.Client
                 
                 lock (ongoing.mutex)
                 {
-                    if (!ongoing.acceptors.Contains(senderId)) return;
+                    if (!ongoing.acceptors.Contains(acceptorId)) return;
 
-                    ongoing.acks.Add(senderId);
+                    ongoing.acks.Add(acceptorId);
                     ongoing.result = msg.Result;
 
                     if (!ongoing.HasMajority()) return;
@@ -263,7 +377,7 @@ namespace Model.Services.Client
             }
         }
 
-        public void OnTxConflict(string senderId, TxConflictMessage msg)
+        public void OnTxConflict(string shardId, TxConflictMessage msg)
         {
             lock (this.mutex)
             {
@@ -273,13 +387,13 @@ namespace Model.Services.Client
                 
                 lock (ongoing.mutex)
                 {
-                    if (!ongoing.shards.Contains(senderId)) return;
+                    if (!ongoing.shards.Contains(shardId)) return;
 
                     ongoing.hasFinished = true;
                     this.ongoingTXs.Remove(ongoing.txId);
                 }
                 
-                ongoing.tcs.SetException(new TxConflictException(ongoing.txId, new []{ msg.ConflictingTxID }));
+                ongoing.tcs.SetException(new TxConflictException(ongoing.txId, msg.KeyBlockedByTX));
             }
         }
 
@@ -303,7 +417,7 @@ namespace Model.Services.Client
             }
         }
 
-        public void OnTxCommitted(string proposerId, TxCommittedMessage msg)
+        public void OnTxAlreadyCommitted(string proposerId, TxAlreadyCommittedMessage msg)
         {
             lock (this.mutex)
             {
@@ -319,7 +433,7 @@ namespace Model.Services.Client
                     this.abortingTXs.Remove(aborting.reqId);
                 }
                 
-                aborting.tcs.SetException(new AlreadyCommittedException());
+                aborting.tcs.SetException(new AlreadyCommittedException(msg.TxID, msg.KeyValueUpdateByShard));
             }
         }
 

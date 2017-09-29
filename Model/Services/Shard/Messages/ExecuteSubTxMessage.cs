@@ -1,28 +1,28 @@
 ﻿using System.Collections.Generic;
 
-namespace Model.Services.Acceptor.Messages
+namespace Model.Services.Shard.Messages
 {
-    public class TxArgumentsMessage
+    public class ExecuteSubTxMessage
     {
-        public TxArgumentsMessage(string txId, string txName, Dictionary<string, string> args, ISet<string> shardIDs)
+        public ExecuteSubTxMessage(string txId, string txName, ISet<string> keys, ISet<string> shardIDs)
         {
             this.TxID = txId;
             this.TxName = txName;
-            this.Args = args;
+            this.Keys = keys;
             this.ShardIDs = shardIDs;
         }
-        
+
         public string TxID { get; }
         public string TxName { get; }
-        public Dictionary<string, string> Args { get; }
+        public ISet<string> Keys { get; }
         public ISet<string> ShardIDs { get; }
 
-        public TxArgumentsMessage Clone()
+        public ExecuteSubTxMessage Clone()
         {
-            return new TxArgumentsMessage(
+            return new ExecuteSubTxMessage(
                 txId: this.TxID,
                 txName: this.TxName,
-                args: new Dictionary<string, string>(this.Args),
+                keys: new HashSet<string>(this.Keys), 
                 shardIDs: new HashSet<string>(this.ShardIDs)
             );
         }

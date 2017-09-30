@@ -148,7 +148,7 @@ namespace Model.Services.Client
 
             foreach (var acceptorId in inProgressTx.acceptors)
             {
-                this.bus.SendArguments(acceptorId, argsMsg.Clone());
+                this.bus.PrepareArguments(acceptorId, argsMsg.Clone());
             }
             
             foreach (var (shardId, subTx) in shardSubTXs)

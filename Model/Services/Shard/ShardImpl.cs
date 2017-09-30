@@ -63,7 +63,7 @@ namespace Model.Services.Shard
             }
             catch (AlreadyBlockedException ex)
             {
-                this.bus.AlreadyBlockedError(clientId, new TxConflictMessage(msg.TxID, ex.BlockedKeyTxPairs));
+                this.bus.AlreadyBlockedError(clientId, new ExecutionConflictedMessage(msg.TxID, ex.BlockedKeyTxPairs));
                 return;
             }
             

@@ -15,7 +15,7 @@ namespace Model.Infrastructure
         void FetchTxStatus(string proposerId, FetchTxStatusMessage msg);
         void ConfirmSubTx(string acceptorId, SubTxConfirmationMessage msg);
         void MarkSubTxCommitted(string shardId, MarkSubTxCommittedMessage msg);
-        void AlreadyBlockedError(string clientId, TxConflictMessage msg);
+        void AlreadyBlockedError(string clientId, ExecutionConflictedMessage msg);
         void RmTx(string proposerId, RmTxMessage msg);
         void NotifySubTxMarkedCommitted(string clientId, SubTxMarkedComittedMessage msg);
     }

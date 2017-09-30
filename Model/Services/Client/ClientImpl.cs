@@ -342,7 +342,7 @@ namespace Model.Services.Client
             }
         }
         
-        public void OnExecutionCommitted(string acceptorId, TxComittedMessage msg)
+        public void OnExecutionCommitted(string acceptorId, ExecutionCommittedMessage msg)
         {
             lock (this.mutex)
             {
@@ -367,7 +367,7 @@ namespace Model.Services.Client
             }
         }
 
-        public void OnExecutionConflicted(string shardId, TxConflictMessage msg)
+        public void OnExecutionConflicted(string shardId, ExecutionConflictedMessage msg)
         {
             lock (this.mutex)
             {
@@ -387,7 +387,7 @@ namespace Model.Services.Client
             }
         }
 
-        public void OnAbortConfirmed(string proposerId, TxAbortedMessage msg)
+        public void OnAbortConfirmed(string proposerId, AbortConfirmedMessage msg)
         {
             lock (this.mutex)
             {
@@ -407,7 +407,7 @@ namespace Model.Services.Client
             }
         }
         
-        public void OnAbortFailed(string proposerId, TxAlreadyCommittedMessage msg)
+        public void OnAbortFailed(string proposerId, AbortFailedMessage msg)
         {
             lock (this.mutex)
             {
@@ -427,7 +427,7 @@ namespace Model.Services.Client
             }
         }
 
-        public void OnTxStatusFetched(string proposerId, FetchedTxStatusMessage msg)
+        public void OnTxStatusFetched(string proposerId, TxStatusFetchedMessage msg)
         {
             lock (this.mutex)
             {

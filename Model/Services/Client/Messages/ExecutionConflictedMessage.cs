@@ -2,20 +2,20 @@
 
 namespace Model.Services.Client.Messages
 {
-    public class TxConflictMessage
+    public class ExecutionConflictedMessage
     {
         public string TxID { get; }
         public Dictionary<string, string> KeyBlockedByTX { get; }
 
-        public TxConflictMessage(string txId, Dictionary<string, string> keyBlockedByTx)
+        public ExecutionConflictedMessage(string txId, Dictionary<string, string> keyBlockedByTx)
         {
             this.TxID = txId;
             this.KeyBlockedByTX = keyBlockedByTx;
         }
 
-        public TxConflictMessage Clone()
+        public ExecutionConflictedMessage Clone()
         {
-            return new TxConflictMessage(
+            return new ExecutionConflictedMessage(
                 txId: this.TxID, 
                 keyBlockedByTx: new Dictionary<string, string>(this.KeyBlockedByTX)
             );

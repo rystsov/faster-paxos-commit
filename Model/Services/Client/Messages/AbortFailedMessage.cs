@@ -2,13 +2,13 @@
 
 namespace Model.Services.Client.Messages
 {
-    public class TxAlreadyCommittedMessage
+    public class AbortFailedMessage
     {
         public string ReqID { get; }
         public string TxID { get; }
         public Dictionary<string, Dictionary<string, string>> KeyValueUpdateByShard { get; }
 
-        public TxAlreadyCommittedMessage(
+        public AbortFailedMessage(
             string reqId, 
             string txId,
             Dictionary<string, Dictionary<string, string>> keyValueUpdateByShard
@@ -19,7 +19,7 @@ namespace Model.Services.Client.Messages
             this.KeyValueUpdateByShard = keyValueUpdateByShard;
         }
 
-        public TxAlreadyCommittedMessage Clone()
+        public AbortFailedMessage Clone()
         {
             var keyValueUpdateByShard = new Dictionary<string, Dictionary<string, string>>();
             foreach (var key in this.KeyValueUpdateByShard.Keys)
@@ -27,7 +27,7 @@ namespace Model.Services.Client.Messages
                 keyValueUpdateByShard.Add(key, new Dictionary<string, string>(this.KeyValueUpdateByShard[key]));
             }
             
-            return new TxAlreadyCommittedMessage(
+            return new AbortFailedMessage(
                 this.ReqID, 
                 this.TxID,
                 keyValueUpdateByShard

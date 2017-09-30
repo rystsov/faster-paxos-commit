@@ -2,22 +2,22 @@
 
 namespace Model.Services.Client.Messages
 {
-    public class TxAbortedMessage
+    public class AbortConfirmedMessage
     {
         public string ReqID { get; }
         public string TxID { get; }
         public IEnumerable<string> ShardIDs { get;  }
 
-        public TxAbortedMessage(string reqId, string txId, IEnumerable<string> shardIDs)
+        public AbortConfirmedMessage(string reqId, string txId, IEnumerable<string> shardIDs)
         {
             this.ReqID = reqId;
             this.TxID = txId;
             this.ShardIDs = shardIDs;
         }
 
-        public TxAbortedMessage Clone()
+        public AbortConfirmedMessage Clone()
         {
-            return new TxAbortedMessage(this.ReqID, this.TxID, this.ShardIDs);
+            return new AbortConfirmedMessage(this.ReqID, this.TxID, this.ShardIDs);
         }
     }
 }

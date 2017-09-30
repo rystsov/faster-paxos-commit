@@ -9,9 +9,9 @@
             this.ReqID = reqId;
         }
 
-        public TxComittedMessage Clone()
+        public ExecutionCommittedMessage Clone()
         {
-            return new TxComittedMessage(
+            return new ExecutionCommittedMessage(
                 this.ReqID
             );
         }

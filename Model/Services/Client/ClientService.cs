@@ -130,7 +130,7 @@ namespace Model.Services.Client
                 group key by this.locator.GetShardIdByKey(key)
                 into shard 
                   let shardId = shard.Key 
-                  let subTx = new ExecuteSubTxMessage(txId, name, new HashSet<string>(shard), shardIDs)
+                  let subTx = new InitiateTxMessage(txId, name, new HashSet<string>(shard), shardIDs)
                 select (shardId: shardId, subTx: subTx);
             
             var inProgressTx = new InProgressTx(
@@ -285,7 +285,7 @@ namespace Model.Services.Client
 
             foreach (var shardId in keyValueUpdateByShard.Keys)
             {
-                this.bus.MarkSubTxCommitted(shardId, new MarkSubTxCommittedMessage(reqId, txId, keyValueUpdateByShard[shardId]));
+                this.bus.MarkSubTxCommitted(shardId, new MarkTxComittedMessage(reqId, txId, keyValueUpdateByShard[shardId]));
             }
 
             lock (cleaningTask.mutex)
@@ -342,7 +342,7 @@ namespace Model.Services.Client
             }
         }
         
-        public void OnExecutionCommitted(string acceptorId, ExecutionCommittedMessage msg)
+        public void OnExecutionAccepted(string acceptorId, ExecutionAcceptedMessage msg)
         {
             lock (this.mutex)
             {

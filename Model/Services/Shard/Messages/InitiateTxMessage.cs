@@ -2,9 +2,9 @@
 
 namespace Model.Services.Shard.Messages
 {
-    public class ExecuteSubTxMessage
+    public class InitiateTxMessage
     {
-        public ExecuteSubTxMessage(string txId, string txName, ISet<string> keys, ISet<string> shardIDs)
+        public InitiateTxMessage(string txId, string txName, ISet<string> keys, ISet<string> shardIDs)
         {
             this.TxID = txId;
             this.TxName = txName;
@@ -17,9 +17,9 @@ namespace Model.Services.Shard.Messages
         public ISet<string> Keys { get; }
         public ISet<string> ShardIDs { get; }
 
-        public ExecuteSubTxMessage Clone()
+        public InitiateTxMessage Clone()
         {
-            return new ExecuteSubTxMessage(
+            return new InitiateTxMessage(
                 txId: this.TxID,
                 txName: this.TxName,
                 keys: new HashSet<string>(this.Keys), 

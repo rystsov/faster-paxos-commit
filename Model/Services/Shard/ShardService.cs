@@ -3,13 +3,13 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Model.Infrastructure;
 using Model.Infrastructure.ShardStorage;
+using Model.Services.Acceptor.Messages;
 using Model.Services.Client.Messages;
 using Model.Services.Shard.Messages;
-using SubTxConfirmationMessage = Model.Services.Acceptor.Messages.SubTxConfirmationMessage;
 
 namespace Model.Services.Shard
 {
-    public class ShardImpl
+    public class ShardService
     {
         private class AbortException : Exception {}
         
@@ -38,7 +38,7 @@ namespace Model.Services.Shard
                 return this.acks.Count >= 1 + acceptors.Count / 2;
             }
         }
-        
+        // hyfen.net/memex
         private readonly IShardStorage storage;
         private readonly INetworkBus bus;
         private readonly IServiceLocator locator;
@@ -46,7 +46,7 @@ namespace Model.Services.Shard
         private readonly object mutex = new object();
         private readonly Dictionary<string, InProgressSubTx> ongoingTXs = new Dictionary<string, InProgressSubTx>();
 
-        public ShardImpl(IShardStorage storage, INetworkBus bus, IServiceLocator locator, ITimer timer)
+        public ShardService(IShardStorage storage, INetworkBus bus, IServiceLocator locator, ITimer timer)
         {
             this.storage = storage;
             this.bus = bus;
@@ -54,7 +54,7 @@ namespace Model.Services.Shard
             this.timer = timer;
         }
 
-        public async Task OnExecuteSubTx(string clientId, ExecuteSubTxMessage msg, int timeoutMs)
+        public async Task InitiateTx(string clientId, InitiateTxMessage msg, int timeoutMs)
         {
             Dictionary<string, string> values;
             try
@@ -76,7 +76,7 @@ namespace Model.Services.Shard
                 this.ongoingTXs.Add(msg.TxID, ongoing);
             }
                 
-            var confirmation = new SubTxConfirmationMessage(msg.TxID, values);
+            var confirmation = new TxAcceptedMessage(msg.TxID, values);
             foreach (var acceptorID in acceptors)
             {
                 this.bus.ConfirmSubTx(acceptorID, confirmation.Clone());
@@ -125,12 +125,19 @@ namespace Model.Services.Shard
             await this.storage.UpdateAndUnblock(msg.TxID, update);
         }
 
-        public async Task OnRollbackSubTx(string _, RollbackSubTxMessage msg)
+        public async Task MarkTxComitted(string clientId, MarkTxComittedMessage msg)
+        {
+            await this.storage.UpdateAndUnblock(msg.TxID, msg.KeyValueUpdate);
+            
+            this.bus.NotifySubTxMarkedCommitted(clientId, new SubTxMarkedComittedMessage(msg.ReqID));
+        }
+        
+        public async Task RollbackTx(string _, RollbackSubTxMessage msg)
         {
             await this.storage.Unblock(msg.TxID);
         }
 
-        public void OnSubTxConfirmation(string acceptorId, SubTxConfirmationMessage msg)
+        public void OnTxAccepted(string acceptorId, TxAcceptedMessage msg)
         {
             lock (this.mutex)
             {
@@ -153,13 +160,6 @@ namespace Model.Services.Shard
                 
                 ongoing.tcs.SetResult(ongoing.keyValueUpdate);
             }
-        }
-
-        public async Task OnMarkSubTxComitted(string clientId, MarkSubTxCommittedMessage msg)
-        {
-            await this.storage.UpdateAndUnblock(msg.TxID, msg.KeyValueUpdate);
-            
-            this.bus.NotifySubTxMarkedCommitted(clientId, new SubTxMarkedComittedMessage(msg.ReqID));
         }
     }
 }

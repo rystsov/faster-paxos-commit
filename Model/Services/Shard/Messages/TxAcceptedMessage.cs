@@ -2,21 +2,21 @@
 
 namespace Model.Services.Shard.Messages
 {
-    public class SubTxConfirmationMessage
+    public class TxAcceptedMessage
     {
         public string TxID { get; }
         public Dictionary<string, string> KeyValueUpdate { get; }
 
-        public SubTxConfirmationMessage(string txId, Dictionary<string, string> keyValueUpdate)
+        public TxAcceptedMessage(string txId, Dictionary<string, string> keyValueUpdate)
         {
             this.TxID = txId;
             this.KeyValueUpdate = keyValueUpdate;
         }
 
-        public SubTxConfirmationMessage Clone()
+        public TxAcceptedMessage Clone()
         {
-            return new SubTxConfirmationMessage(
-                txId: this.TxID,
+            return new TxAcceptedMessage(
+                txId: this.TxID, 
                 keyValueUpdate: new Dictionary<string, string>(this.KeyValueUpdate)
             );
         }

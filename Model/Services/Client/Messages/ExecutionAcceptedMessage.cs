@@ -2,24 +2,24 @@
 
 namespace Model.Services.Client.Messages
 {
-    public class ExecutionCommittedMessage
+    public class ExecutionAcceptedMessage
     {
         public string TxID { get; }
         public Dictionary<string, string> Result { get; }
 
-        public ExecutionCommittedMessage(string txId) : this(txId, new Dictionary<string, string>())
+        public ExecutionAcceptedMessage(string txId) : this(txId, new Dictionary<string, string>())
         {
         }
         
-        public ExecutionCommittedMessage(string txId, Dictionary<string, string> result)
+        public ExecutionAcceptedMessage(string txId, Dictionary<string, string> result)
         {
             this.TxID = txId;
             this.Result = result;
         }
 
-        public ExecutionCommittedMessage Clone()
+        public ExecutionAcceptedMessage Clone()
         {
-            return new ExecutionCommittedMessage(
+            return new ExecutionAcceptedMessage(
                 this.TxID,
                 new Dictionary<string, string>(this.Result)
             );

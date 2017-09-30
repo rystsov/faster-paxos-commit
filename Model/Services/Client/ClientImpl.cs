@@ -43,7 +43,7 @@ namespace Model.Services.Client
 
         private class AbortingTx
         {
-            public readonly TaskCompletionSource<TxDetails> tcs = new TaskCompletionSource<TxDetails>();
+            public readonly TaskCompletionSource<IEnumerable<string>> tcs = new TaskCompletionSource<IEnumerable<string>>();
             public readonly object mutex = new object();
             public readonly string reqId;
             public readonly string txId;
@@ -78,16 +78,6 @@ namespace Model.Services.Client
                 this.proposerId = proposerId;
                 this.hasSent = false;
                 this.hasFinished = false;
-            }
-        }
-
-        private class TxDetails
-        {
-            public readonly IEnumerable<string> shardIds;
-
-            public TxDetails(IEnumerable<string> shardIds)
-            {
-                this.shardIds = shardIds;
             }
         }
 
@@ -231,11 +221,11 @@ namespace Model.Services.Client
                 }
             }, timeoutMs);
 
-            var txDetails = await abortingTx.tcs.Task;
+            var shardIds = await abortingTx.tcs.Task;
             
             var rollbackMsg = new RollbackSubTxMessage(txId);
 
-            foreach (var shardId in txDetails.shardIds)
+            foreach (var shardId in shardIds)
             {
                 this.bus.RollbackTx(shardId, rollbackMsg.Clone());
             }
@@ -413,7 +403,7 @@ namespace Model.Services.Client
                     this.abortingTXs.Remove(aborting.reqId);
                 }
                 
-                aborting.tcs.SetResult(new TxDetails(msg.ShardIDs));
+                aborting.tcs.SetResult(msg.ShardIDs);
             }
         }
         

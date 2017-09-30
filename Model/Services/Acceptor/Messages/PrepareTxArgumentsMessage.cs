@@ -2,9 +2,9 @@
 
 namespace Model.Services.Acceptor.Messages
 {
-    public class TxArgumentsMessage
+    public class PrepareTxArgumentsMessage
     {
-        public TxArgumentsMessage(string txId, string txName, Dictionary<string, string> args, ISet<string> shardIDs)
+        public PrepareTxArgumentsMessage(string txId, string txName, Dictionary<string, string> args, ISet<string> shardIDs)
         {
             this.TxID = txId;
             this.TxName = txName;
@@ -17,9 +17,9 @@ namespace Model.Services.Acceptor.Messages
         public Dictionary<string, string> Args { get; }
         public ISet<string> ShardIDs { get; }
 
-        public TxArgumentsMessage Clone()
+        public PrepareTxArgumentsMessage Clone()
         {
-            return new TxArgumentsMessage(
+            return new PrepareTxArgumentsMessage(
                 txId: this.TxID,
                 txName: this.TxName,
                 args: new Dictionary<string, string>(this.Args),

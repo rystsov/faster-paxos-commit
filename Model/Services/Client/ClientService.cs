@@ -144,11 +144,11 @@ namespace Model.Services.Client
                 this.ongoingTXs.Add(txId, inProgressTx);
             }
             
-            var argsMsg = new TxArgumentsMessage(txId, name, args, shardIDs);
+            var argsMsg = new PrepareTxArgumentsMessage(txId, name, args, shardIDs);
 
             foreach (var acceptorId in inProgressTx.acceptors)
             {
-                this.bus.PrepareArguments(acceptorId, argsMsg.Clone());
+                this.bus.PrepareTxArguments(acceptorId, argsMsg.Clone());
             }
             
             foreach (var (shardId, subTx) in shardSubTXs)

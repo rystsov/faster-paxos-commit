@@ -8,7 +8,7 @@ namespace Model.Infrastructure
     public interface INetworkBus
     {
         void ExecuteSubTx(string shardId, InitiateTxMessage msg);
-        void PrepareArguments(string acceptorId, TxArgumentsMessage msg);
+        void PrepareTxArguments(string acceptorId, PrepareTxArgumentsMessage msg);
         void AbortTx(string proposerId, TxAbortMessage msg);
         void RollbackTx(string shardId, RollbackSubTxMessage msg);
         void FetchTxStatus(string proposerId, FetchTxStatusMessage msg);

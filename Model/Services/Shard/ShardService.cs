@@ -13,38 +13,11 @@ namespace Model.Services.Shard
     {
         private class AbortException : Exception {}
         
-        private class InProgressSubTx
-        {
-            public readonly TaskCompletionSource<Dictionary<string, string>> tcs = new TaskCompletionSource<Dictionary<string, string>>();
-            public readonly object mutex = new object();
-            public readonly string txId;
-            public Dictionary<string, string> keyValueUpdate;
-            public readonly ISet<string> acks = new HashSet<string>();
-            public readonly ISet<string> nacks = new HashSet<string>();
-            public readonly ISet<string> acceptors;
-            public bool hasSent;
-            public bool hasFinished;
-
-            public InProgressSubTx(ISet<string> acceptors, string txId)
-            {
-                this.txId = txId;
-                this.acceptors = acceptors;
-                this.hasSent = false;
-                this.hasFinished = false;
-            }
-
-            public bool HasMajority()
-            {
-                return this.acks.Count >= 1 + acceptors.Count / 2;
-            }
-        }
         // hyfen.net/memex
         private readonly IShardStorage storage;
         private readonly INetworkBus bus;
         private readonly IServiceLocator locator;
         private readonly ITimer timer;
-        private readonly object mutex = new object();
-        private readonly Dictionary<string, InProgressSubTx> ongoingTXs = new Dictionary<string, InProgressSubTx>();
 
         public ShardService(IShardStorage storage, INetworkBus bus, IServiceLocator locator, ITimer timer)
         {
@@ -53,7 +26,7 @@ namespace Model.Services.Shard
             this.locator = locator;
             this.timer = timer;
         }
-
+        
         public async Task InitiateTx(string clientId, InitiateTxMessage msg, int timeoutMs)
         {
             Dictionary<string, string> values;
@@ -63,59 +36,55 @@ namespace Model.Services.Shard
             }
             catch (AlreadyBlockedException ex)
             {
-                this.bus.AlreadyBlockedError(clientId, new ExecutionConflictedMessage(msg.TxID, ex.BlockedKeyTxPairs));
+                this.bus.NotifyExecutionConflicted(clientId, new ExecutionConflictedMessage(msg.TxID, ex.BlockedKeyTxPairs));
                 return;
             }
             
             var acceptors = this.locator.GetAcceptorIDs();
                 
-            var ongoing = new InProgressSubTx(acceptors, msg.TxID);
+            var result = new TaskCompletionSource<Dictionary<string, string>>();
+            var localMutex = new object();
+            var acks = new HashSet<string>();
+            var hasFinished = false;
 
-            lock (this.mutex)
-            {
-                this.ongoingTXs.Add(msg.TxID, ongoing);
-            }
-                
             var confirmation = new TxAcceptedMessage(msg.TxID, values);
             foreach (var acceptorID in acceptors)
             {
-                this.bus.ConfirmSubTx(acceptorID, confirmation.Clone());
-            }
-
-            lock (ongoing.mutex)
-            {
-                ongoing.hasSent = true;
+                this.bus.CommitSubTx(acceptorID, confirmation.Clone());
             }
                 
             this.timer.SetTimeout(() =>
             {
-                lock (this.mutex)
+                lock (localMutex)
                 {
-                    lock (ongoing.mutex)
-                    {
-                        if (!ongoing.hasFinished)
-                        {
-                            ongoing.hasFinished = true;
-                            if (this.ongoingTXs.ContainsKey(ongoing.txId))
-                            {
-                                this.ongoingTXs.Remove(ongoing.txId);
-                            }
-                            ongoing.tcs.SetException(new AbortException());
-                        }
-                    }
+                    if (hasFinished) return;
+                     hasFinished = true;
+                     result.SetException(new AbortException());
                 }
             }, timeoutMs);
-                
-            lock (ongoing.mutex)
+
+            this.bus.WaitForSubTxAccepted(msg.TxID, (subTxAccepted, acceptorId) =>
             {
-                ongoing.hasSent = true;
-            }
+                lock (localMutex)
+                {
+                    if (hasFinished) return WaitStrategy.StopWaiting;
+                    if (!acceptors.Contains(acceptorId)) return WaitStrategy.KeepWaiting;
+
+                    acks.Add(acceptorId);
+
+                    if (acks.Count < 1 + acceptors.Count / 2) return WaitStrategy.KeepWaiting;
+
+                    hasFinished = true;
+                    result.SetResult(subTxAccepted.KeyValueUpdate);
+                    return WaitStrategy.StopWaiting;
+                }
+            });
 
             Dictionary<string, string> update;
 
             try
             {
-                update = await ongoing.tcs.Task;
+                update = await result.Task;
             }
             catch (AbortException)
             {
@@ -135,31 +104,6 @@ namespace Model.Services.Shard
         public async Task RollbackTx(string _, RollbackSubTxMessage msg)
         {
             await this.storage.Unblock(msg.TxID);
-        }
-
-        public void OnTxAccepted(string acceptorId, TxAcceptedMessage msg)
-        {
-            lock (this.mutex)
-            {
-                if (!this.ongoingTXs.ContainsKey(msg.TxID)) return;
-                
-                var ongoing = this.ongoingTXs[msg.TxID];
-                
-                lock (ongoing.mutex)
-                {
-                    if (!ongoing.acceptors.Contains(acceptorId)) return;
-
-                    ongoing.acks.Add(acceptorId);
-                    ongoing.keyValueUpdate = msg.KeyValueUpdate;
-
-                    if (!ongoing.HasMajority()) return;
-
-                    ongoing.hasFinished = true;
-                    this.ongoingTXs.Remove(ongoing.txId);
-                }
-                
-                ongoing.tcs.SetResult(ongoing.keyValueUpdate);
-            }
         }
     }
 }

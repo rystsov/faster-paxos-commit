@@ -11,13 +11,13 @@ using Model.Services.Shard.Messages;
 
 namespace Model.Services.Client
 {
-    public class ClientImpl : IClient
+    public class ClientService : IClient
     {
         private readonly IServiceLocator locator;
         private readonly INetworkBus bus;
         private readonly ITimer timer;
 
-        public ClientImpl(IServiceLocator locator, INetworkBus bus, ITimer timer)
+        public ClientService(IServiceLocator locator, INetworkBus bus, ITimer timer)
         {
             this.locator = locator;
             this.bus = bus;

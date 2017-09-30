@@ -155,11 +155,11 @@ namespace Model.Services.Shard
             }
         }
 
-        public async Task OnCommitSubTx(string clientId, CommitSubTxMessage msg)
+        public async Task OnMarkSubTxComitted(string clientId, MarkSubTxCommittedMessage msg)
         {
             await this.storage.UpdateAndUnblock(msg.TxID, msg.KeyValueUpdate);
             
-            this.bus.SubTxCommitted(clientId, new SubTxComittedMessage(msg.ReqID));
+            this.bus.NotifySubTxMarkedCommitted(clientId, new SubTxMarkedComittedMessage(msg.ReqID));
         }
     }
 }

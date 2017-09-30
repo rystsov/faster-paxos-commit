@@ -34,7 +34,11 @@ namespace Model.Services.Client
         /// <exception cref="SomeException">In case of exception retry the request</exception>
         Task<TxStatus> FetchTxStatus(string txId, int timeoutMs);
 
+        /// <summary>
+        /// A system may endup in a situation when a transaction is committed but the keys remain blocked
+        /// In this case we need a way to mark a transaction committed and unblock the locks
+        /// </summary>
         /// <exception cref="SomeException">In case of exception retry the request</exception>
-        Task Commit(string txId, Dictionary<string, Dictionary<string, string>> keyValueUpdateByShard, int timeoutMs);
+        Task MarkCommitted(string txId, Dictionary<string, Dictionary<string, string>> keyValueUpdateByShard, int timeoutMs);
     }
 }

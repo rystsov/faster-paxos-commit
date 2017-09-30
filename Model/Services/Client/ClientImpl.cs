@@ -91,7 +91,7 @@ namespace Model.Services.Client
             }
         }
 
-        private class CommittingTx
+        private class CleaningTask
         {
             public readonly TaskCompletionSource<bool> tcs = new TaskCompletionSource<bool>();
             public readonly object mutex = new object();
@@ -102,7 +102,7 @@ namespace Model.Services.Client
             public bool hasSent;
             public bool hasFinished;
 
-            public CommittingTx(string reqId, string txId, ISet<string> shardIDs)
+            public CleaningTask(string reqId, string txId, ISet<string> shardIDs)
             {
                 this.reqId = reqId;
                 this.txId = txId;
@@ -119,7 +119,7 @@ namespace Model.Services.Client
         private readonly Dictionary<string, InProgressTx> ongoingTXs = new Dictionary<string, InProgressTx>();
         private readonly Dictionary<string, AbortingTx> abortingTXs = new Dictionary<string, AbortingTx>();
         private readonly Dictionary<string, FetchingTxStatus> fetchingTXs = new Dictionary<string, FetchingTxStatus>();
-        private readonly Dictionary<string, CommittingTx> committingTXs = new Dictionary<string, CommittingTx>();
+        private readonly Dictionary<string, CleaningTask> cleaningTasks = new Dictionary<string, CleaningTask>();
         private readonly object mutex = new object();
 
         public ClientImpl(IServiceLocator locator, INetworkBus bus, ITimer timer)
@@ -282,58 +282,58 @@ namespace Model.Services.Client
             return fetchingTx.tcs.Task;
         }
 
-        public async Task Commit(string txId, Dictionary<string, Dictionary<string, string>> keyValueUpdateByShard, int timeoutMs)
+        public async Task MarkCommitted(string txId, Dictionary<string, Dictionary<string, string>> keyValueUpdateByShard, int timeoutMs)
         {
             var reqId = Guid.NewGuid().ToString();
             
-            var commitingTx = new CommittingTx(reqId, txId, new HashSet<string>(keyValueUpdateByShard.Keys));
+            var cleaningTask = new CleaningTask(reqId, txId, new HashSet<string>(keyValueUpdateByShard.Keys));
 
             lock (this.mutex)
             {
-                this.committingTXs.Add(reqId, commitingTx);
+                this.cleaningTasks.Add(reqId, cleaningTask);
             }
 
             foreach (var shardId in keyValueUpdateByShard.Keys)
             {
-                this.bus.CommitSubTx(shardId, new CommitSubTxMessage(reqId, txId, keyValueUpdateByShard[shardId]));
+                this.bus.MarkSubTxCommitted(shardId, new MarkSubTxCommittedMessage(reqId, txId, keyValueUpdateByShard[shardId]));
             }
 
-            lock (commitingTx.mutex)
+            lock (cleaningTask.mutex)
             {
-                commitingTx.hasSent = true;
+                cleaningTask.hasSent = true;
             }
             
             this.timer.SetTimeout(() =>
             {
                 lock (this.mutex)
                 {
-                    lock (commitingTx.mutex)
+                    lock (cleaningTask.mutex)
                     {
-                        if (!commitingTx.hasFinished)
+                        if (!cleaningTask.hasFinished)
                         {
-                            commitingTx.hasFinished = true;
-                            if (this.committingTXs.ContainsKey(commitingTx.reqId))
+                            cleaningTask.hasFinished = true;
+                            if (this.cleaningTasks.ContainsKey(cleaningTask.reqId))
                             {
-                                this.fetchingTXs.Remove(commitingTx.reqId);
+                                this.cleaningTasks.Remove(cleaningTask.reqId);
                             }
-                            commitingTx.tcs.SetException(new SomeException());
+                            cleaningTask.tcs.SetException(new SomeException());
                         }
                     }
                 }
             }, timeoutMs);
 
-            await commitingTx.tcs.Task;
+            await cleaningTask.tcs.Task;
             
             this.bus.RmTx(this.locator.GetRandomProposer(), new RmTxMessage(txId));
         }
 
-        public void OnSubTxCommitted(string shardId, SubTxComittedMessage msg)
+        public void OnSubTxMarkedCommitted(string shardId, SubTxMarkedComittedMessage msg)
         {
             lock (this.mutex)
             {
-                if (!this.committingTXs.ContainsKey(msg.ReqID)) return;
+                if (!this.cleaningTasks.ContainsKey(msg.ReqID)) return;
                 
-                var commitingTx = this.committingTXs[msg.ReqID];
+                var commitingTx = this.cleaningTasks[msg.ReqID];
                 
                 lock (commitingTx.mutex)
                 {
@@ -345,14 +345,14 @@ namespace Model.Services.Client
                     if (commitingTx.hasFinished) return;
                     
                     commitingTx.hasFinished = true;
-                    this.committingTXs.Remove(commitingTx.reqId);
+                    this.cleaningTasks.Remove(commitingTx.reqId);
                 }
                 
                 commitingTx.tcs.SetResult(true);
             }
         }
         
-        public void OnTxConfirmation(string acceptorId, TxComittedMessage msg)
+        public void OnExecutionCommitted(string acceptorId, TxComittedMessage msg)
         {
             lock (this.mutex)
             {
@@ -377,7 +377,7 @@ namespace Model.Services.Client
             }
         }
 
-        public void OnTxConflict(string shardId, TxConflictMessage msg)
+        public void OnExecutionConflicted(string shardId, TxConflictMessage msg)
         {
             lock (this.mutex)
             {
@@ -397,7 +397,7 @@ namespace Model.Services.Client
             }
         }
 
-        public void OnTxAborted(string proposerId, TxAbortedMessage msg)
+        public void OnAbortConfirmed(string proposerId, TxAbortedMessage msg)
         {
             lock (this.mutex)
             {
@@ -416,8 +416,8 @@ namespace Model.Services.Client
                 aborting.tcs.SetResult(new TxDetails(msg.ShardIDs));
             }
         }
-
-        public void OnTxAlreadyCommitted(string proposerId, TxAlreadyCommittedMessage msg)
+        
+        public void OnAbortFailed(string proposerId, TxAlreadyCommittedMessage msg)
         {
             lock (this.mutex)
             {

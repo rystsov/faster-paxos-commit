@@ -14,9 +14,9 @@ namespace Model.Infrastructure
         void RollbackTx(string shardId, RollbackSubTxMessage msg);
         void FetchTxStatus(string proposerId, FetchTxStatusMessage msg);
         void ConfirmSubTx(string acceptorId, SubTxConfirmationMessage msg);
-        void CommitSubTx(string shardId, CommitSubTxMessage msg);
+        void MarkSubTxCommitted(string shardId, MarkSubTxCommittedMessage msg);
         void AlreadyBlockedError(string clientId, TxConflictMessage msg);
         void RmTx(string proposerId, RmTxMessage msg);
-        void SubTxCommitted(string clientId, SubTxComittedMessage msg);
+        void NotifySubTxMarkedCommitted(string clientId, SubTxMarkedComittedMessage msg);
     }
 }

@@ -47,10 +47,10 @@ namespace Model.Services.Shard
             var acks = new HashSet<string>();
             var hasFinished = false;
 
-            var confirmation = new TxAcceptedMessage(msg.TxID, values);
+            var confirmation = new CommitTxMessage(this.bus.SelfID, msg.TxID, values);
             foreach (var acceptorID in acceptors)
             {
-                this.bus.CommitSubTx(acceptorID, confirmation.Clone());
+                this.bus.CommitTx(acceptorID, confirmation.Clone());
             }
                 
             this.timer.SetTimeout(() =>

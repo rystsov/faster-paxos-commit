@@ -45,7 +45,7 @@ namespace Model.Services.Client
                     subTx: new InitiateTxMessage(txId, name, new HashSet<string>(shard), shardIDs)
                 );
             
-            var argsMsg = new PrepareTxArgumentsMessage(txId, name, args, shardIDs);
+            var argsMsg = new PrepareTxArgumentsMessage(this.bus.SelfID, txId, name, args, shardIDs);
 
             foreach (var acceptorId in acceptors)
             {

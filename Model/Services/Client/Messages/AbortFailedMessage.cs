@@ -4,32 +4,24 @@ namespace Model.Services.Client.Messages
 {
     public class AbortFailedMessage
     {
-        public string ReqID { get; }
-        public string TxID { get; }
-        public Dictionary<string, Dictionary<string, string>> KeyValueUpdateByShard { get; }
+        public Dictionary<string, Dictionary<string, string>> ShardKeyValueUpdate { get; }
 
         public AbortFailedMessage(
-            string reqId, 
-            string txId,
-            Dictionary<string, Dictionary<string, string>> keyValueUpdateByShard
+            Dictionary<string, Dictionary<string, string>> shardKeyValueUpdate
         )
         {
-            this.ReqID = reqId;
-            this.TxID = txId;
-            this.KeyValueUpdateByShard = keyValueUpdateByShard;
+            this.ShardKeyValueUpdate = shardKeyValueUpdate;
         }
 
         public AbortFailedMessage Clone()
         {
             var keyValueUpdateByShard = new Dictionary<string, Dictionary<string, string>>();
-            foreach (var key in this.KeyValueUpdateByShard.Keys)
+            foreach (var key in this.ShardKeyValueUpdate.Keys)
             {
-                keyValueUpdateByShard.Add(key, new Dictionary<string, string>(this.KeyValueUpdateByShard[key]));
+                keyValueUpdateByShard.Add(key, new Dictionary<string, string>(this.ShardKeyValueUpdate[key]));
             }
             
             return new AbortFailedMessage(
-                this.ReqID, 
-                this.TxID,
                 keyValueUpdateByShard
             );
         }

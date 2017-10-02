@@ -25,14 +25,6 @@ namespace Model.Services.Client
         /// <exception cref="AlreadyCommittedException" />
         /// <exception cref="TxUnknownException">Unknown error, see the TxID to fetch the tx's status</exception>
         Task AbortTx(string txId, int timeoutMs);
-        
-        /// <summary>
-        /// Fetches a transactions status
-        /// </summary>
-        /// <param name="txId">Transactions's ID</param>
-        /// <returns>Status</returns>
-        /// <exception cref="SomeException">In case of exception retry the request</exception>
-        Task<TxStatus> FetchTxStatus(string txId, int timeoutMs);
 
         /// <summary>
         /// A system may endup in a situation when a transaction is committed but the keys remain blocked

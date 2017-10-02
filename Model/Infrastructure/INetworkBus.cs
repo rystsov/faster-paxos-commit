@@ -19,12 +19,11 @@ namespace Model.Infrastructure
         void NotifySubTxMarkedCommitted(string clientId, SubTxMarkedComittedMessage msg);
         IHandler WaitForSubTxMarkedCommitted(string reqId, Func<SubTxMarkedComittedMessage, string, WaitStrategy> handler);
         
-        void FetchTxStatus(string proposerId, FetchTxStatusMessage msg);
-        IHandler WaitForTxStatusFetched(string reqId, Func<TxStatusFetchedMessage, string, WaitStrategy> handler);
-        
         void AbortTx(string proposerId, TxAbortMessage msg);
         IHandler WaitForAbortConfirmed(string reqId, Func<AbortConfirmedMessage, string, WaitStrategy> handler);
         IHandler WaitForAbortFailed(string reqId, Func<AbortFailedMessage, string, WaitStrategy> handler);
+        void NotifyAbortConfirmed(string clientId, string reqId, AbortConfirmedMessage msg);
+        void NotifyAbortFailed(string clientId, string reqId, AbortFailedMessage msg);
         
         void CommitTx(string acceptorId, CommitTxMessage msg);
         IHandler WaitForSubTxAccepted(string reqId, Func<SubTxAcceptedMessage, string, WaitStrategy> handler);
@@ -36,6 +35,11 @@ namespace Model.Infrastructure
         void NotifyExecutionConflicted(string clientId, ExecutionConflictedMessage msg);
         void RmTx(string proposerId, RmTxMessage msg);
         
-        void Propose(string acceptorId, string reqId, ProposeMessage proposeMessage);
+        void Promise(string acceptorId, string reqId, PromiseMessage promiseMessage);
+        IHandler WaitForPromiseAccepted(string reqId, Func<PromiseAcceptedMessage, string, WaitStrategy> handler);
+        IHandler WaitForPromiseConflicted(string reqId, Func<PromiseConflictedMessage, string, WaitStrategy> handler);
+
+        void AcceptUpdate(string acceptorId, string reqId, AcceptUpdateMessage msg);
+        IHandler WaitForUpdateAccepted(string reqId, Func<UpdateAcceptedMessage, string, WaitStrategy> handler);
     }
 }

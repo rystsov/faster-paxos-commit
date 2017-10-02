@@ -138,7 +138,7 @@ namespace Model.Services.Client
                     if (senderId != proposerId) return WaitStrategy.KeepWaiting;
                     
                     hasFinished = true;
-                    result.SetException(new AlreadyCommittedException(msg.TxID, msg.KeyValueUpdateByShard));
+                    result.SetException(new AlreadyCommittedException(txId, msg.ShardKeyValueUpdate));
                     return WaitStrategy.StopWaiting;
                 }
             });
@@ -165,46 +165,7 @@ namespace Model.Services.Client
             }
         }
         
-        public Task<TxStatus> FetchTxStatus(string txId, int timeoutMs)
-        {
-            var proposerId = this.locator.GetRandomProposer();
-            var reqId = Guid.NewGuid().ToString();
-            
-            var result = new TaskCompletionSource<TxStatus>();
-            var localMutex = new object();
-            var hasFinished = false;
-            
-            this.bus.FetchTxStatus(proposerId, new FetchTxStatusMessage(reqId, txId));
-
-            // OPUS NASA
-            
-            var handler1 = this.bus.WaitForTxStatusFetched(reqId, (msg, senderId) =>
-            {
-                lock (localMutex)
-                {
-                    if (hasFinished) return WaitStrategy.StopWaiting;
-                    if (proposerId != senderId) return WaitStrategy.KeepWaiting;
-
-                    hasFinished = true;
-                
-                    result.SetResult(msg.Status);
-                    return WaitStrategy.StopWaiting;
-                }
-            });
-            
-            this.timer.SetTimeout(() =>
-            {
-                lock (localMutex)
-                {
-                    if (hasFinished) return;
-                    hasFinished = true;
-                    result.SetException(new SomeException());
-                    handler1.Dispose();
-                }
-            }, timeoutMs);
-
-            return result.Task;
-        }
+        // OPUS NASA
 
         public async Task MarkCommitted(string txId, Dictionary<string, Dictionary<string, string>> keyValueUpdateByShard, int timeoutMs)
         {

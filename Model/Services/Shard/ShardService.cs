@@ -99,7 +99,7 @@ namespace Model.Services.Shard
         {
             await this.storage.UpdateAndUnblock(msg.TxID, msg.KeyValueUpdate);
             
-            this.bus.NotifySubTxMarkedCommitted(clientId, new SubTxMarkedComittedMessage(msg.ReqID));
+            this.bus.NotifySubTxMarkedCommitted(clientId, msg.ReqID);
         }
         
         public async Task RollbackTx(string _, RollbackSubTxMessage msg)

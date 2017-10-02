@@ -182,7 +182,7 @@ namespace Model.Services.Client
                 this.bus.MarkSubTxCommitted(shardId, new MarkTxComittedMessage(reqId, txId, keyValueUpdateByShard[shardId]));
             }
             
-            var handler1 = this.bus.WaitForSubTxMarkedCommitted(reqId, (msg, shardId) =>
+            var handler1 = this.bus.WaitForSubTxMarkedCommitted(reqId, (shardId) =>
             {
                 lock (localMutex)
                 {

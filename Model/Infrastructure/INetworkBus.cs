@@ -16,8 +16,8 @@ namespace Model.Infrastructure
         void NotifyExecutionAccepted(string clientId, string reqId, ExecutionAcceptedMessage msg);
         
         void MarkSubTxCommitted(string shardId, MarkTxComittedMessage msg);
-        void NotifySubTxMarkedCommitted(string clientId, SubTxMarkedComittedMessage msg);
-        IHandler WaitForSubTxMarkedCommitted(string reqId, Func<SubTxMarkedComittedMessage, string, WaitStrategy> handler);
+        void NotifySubTxMarkedCommitted(string clientId, string reqId);
+        IHandler WaitForSubTxMarkedCommitted(string reqId, Func<string, WaitStrategy> handler);
         
         void AbortTx(string proposerId, TxAbortMessage msg);
         IHandler WaitForAbortConfirmed(string reqId, Func<AbortConfirmedMessage, string, WaitStrategy> handler);
@@ -35,11 +35,14 @@ namespace Model.Infrastructure
         void NotifyExecutionConflicted(string clientId, ExecutionConflictedMessage msg);
         void RmTx(string proposerId, RmTxMessage msg);
         
-        void Promise(string acceptorId, string reqId, PromiseMessage promiseMessage);
+        void Promise(string acceptorId, PromiseMessage promiseMessage);
         IHandler WaitForPromiseAccepted(string reqId, Func<PromiseAcceptedMessage, string, WaitStrategy> handler);
         IHandler WaitForPromiseConflicted(string reqId, Func<PromiseConflictedMessage, string, WaitStrategy> handler);
+        void NotifyPromiseAccepted(string proposerId, string reqId, PromiseAcceptedMessage msg);
+        void NotifyPromiseConflicted(string proposerId, string reqId, PromiseConflictedMessage msg);
 
-        void AcceptUpdate(string acceptorId, string reqId, AcceptUpdateMessage msg);
-        IHandler WaitForUpdateAccepted(string reqId, Func<UpdateAcceptedMessage, string, WaitStrategy> handler);
+        void AcceptUpdate(string acceptorId, AcceptUpdateMessage msg);
+        IHandler WaitForUpdateAccepted(string reqId, Func<string, WaitStrategy> handler);
+        void NotifyUpdateAccepted(string proposerId, string reqId);
     }
 }

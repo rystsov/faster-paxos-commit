@@ -12,16 +12,6 @@ namespace Model.Services.Proposer
 {
     public class ProposerService
     {
-        private class ConflictException : Exception
-        {
-            public BallotNumber Future { get; }
-
-            public ConflictException(BallotNumber future)
-            {
-                this.Future = future;
-            }
-        }
-        
         private readonly IServiceLocator locator;
         private readonly INetworkBus bus;
         private readonly ITimer timer;
@@ -63,7 +53,7 @@ namespace Model.Services.Proposer
                 {
                     state.IsAborted = true;
                 }
-                await this.UpdateState(acceptors, ballot, state, timeoutMs);
+                await this.UpdateState(acceptors, msg.TxID, ballot, state, timeoutMs);
             }
             catch (ConflictException e)
             {
@@ -102,7 +92,7 @@ namespace Model.Services.Proposer
 
             foreach (var acceptorId in acceptors)
             {
-                this.bus.Promise(acceptorId, reqId, new PromiseMessage(txId, ballot));
+                this.bus.Promise(acceptorId, new PromiseMessage(reqId, txId, ballot));
             }
             
             var maxState = new TaskCompletionSource<TxState>();
@@ -158,7 +148,7 @@ namespace Model.Services.Proposer
             return maxState.Task; 
         }
         
-        private async Task UpdateState(ISet<string> acceptors, BallotNumber ballot, TxState state, int timeoutMs)
+        private async Task UpdateState(ISet<string> acceptors, string txId, BallotNumber ballot, TxState state, int timeoutMs)
         {
             var reqId = Guid.NewGuid().ToString();
             var localMutex = new object();
@@ -168,10 +158,10 @@ namespace Model.Services.Proposer
             
             foreach (var acceptorId in acceptors)
             {
-                this.bus.AcceptUpdate(acceptorId, reqId, new AcceptUpdateMessage(ballot, state));
+                this.bus.AcceptUpdate(acceptorId, new AcceptUpdateMessage(reqId, txId, ballot, state));
             }
             
-            var handler1 = this.bus.WaitForUpdateAccepted(reqId, (_, acceptorId) =>
+            var handler1 = this.bus.WaitForUpdateAccepted(reqId, (acceptorId) =>
             {
                 lock (localMutex)
                 {

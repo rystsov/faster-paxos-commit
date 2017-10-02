@@ -6,6 +6,7 @@ using Model.Infrastructure;
 using Model.Infrastructure.AcceptorStorage;
 using Model.Services.Acceptor.Messages;
 using Model.Services.Client.Messages;
+using Model.Services.Proposer.Messages;
 using Model.Services.Shard.Messages;
 
 namespace Model.Services.Acceptor
@@ -83,7 +84,7 @@ namespace Model.Services.Acceptor
             }
         }
 
-        public void PrepareTxArguments(string acceptorId, PrepareTxArgumentsMessage msg, int timeoutMs)
+        public void PrepareTxArguments(string senderId, PrepareTxArgumentsMessage msg, int timeoutMs)
         {
             var ongoingTx = this.EnsureTxIsOngoing(msg.TxID, timeoutMs);
 
@@ -110,6 +111,30 @@ namespace Model.Services.Acceptor
             }
         }
 
+        public async Task Promise(string proposerId, PromiseMessage msg)
+        {
+            try
+            {
+                var status = await this.storage.Promise(msg.TxID, msg.Ballot);
+                this.bus.NotifyPromiseAccepted(proposerId, msg.ReqID, new PromiseAcceptedMessage(
+                    status.AcceptedBallot,
+                    status.State
+                ));
+            }
+            catch (ConflictException e)
+            {
+                this.bus.NotifyPromiseConflicted(proposerId, msg.ReqID, new PromiseConflictedMessage(
+                    e.Future
+                ));
+            }
+        }
+
+        public async Task Accept(string proposerId, AcceptUpdateMessage msg)
+        {
+            await this.storage.Accept(msg.TxID, msg.Ballot, msg.State);
+            this.bus.NotifyUpdateAccepted(proposerId, msg.ReqID);
+        }
+        
         private async Task Execute(Tx tx)
         {
             try

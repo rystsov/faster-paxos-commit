@@ -7,5 +7,9 @@ namespace Model.Infrastructure.AcceptorStorage
     {
         // ok, conflict, unknown
         Task Commit(string txId, Dictionary<string, Dictionary<string, string>> shardKeyValueUpdates);
+
+        Task<AcceptedValue> Promise(string txId, BallotNumber ballot);
+
+        Task Accept(string txId, BallotNumber ballot, TxState state);
     }
 }

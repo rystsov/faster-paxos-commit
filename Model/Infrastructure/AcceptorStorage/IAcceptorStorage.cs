@@ -9,7 +9,7 @@ namespace Model.Infrastructure.AcceptorStorage
         Task Commit(string txId, Dictionary<string, Dictionary<string, string>> shardKeyValueUpdates);
 
         Task<AcceptedValue> Promise(string txId, BallotNumber ballot);
-
         Task Accept(string txId, BallotNumber ballot, TxState state);
+        Task RmTx(string txId);
     }
 }

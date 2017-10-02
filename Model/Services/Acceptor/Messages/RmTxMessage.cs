@@ -1,4 +1,4 @@
-﻿namespace Model.Services.Proposer.Messages
+﻿namespace Model.Services.Acceptor.Messages
 {
     public class RmTxMessage
     {

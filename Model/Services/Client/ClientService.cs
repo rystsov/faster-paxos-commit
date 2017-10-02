@@ -211,8 +211,11 @@ namespace Model.Services.Client
             }, timeoutMs);
 
             await result.Task;
-            
-            this.bus.RmTx(this.locator.GetRandomProposer(), new RmTxMessage(txId));
+
+            foreach (var acceptorId in this.locator.GetAcceptorIDs())
+            {
+                this.bus.RmTx(acceptorId, new RmTxMessage(txId));
+            }
         }
     }
 }

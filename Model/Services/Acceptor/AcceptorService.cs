@@ -134,7 +134,12 @@ namespace Model.Services.Acceptor
             await this.storage.Accept(msg.TxID, msg.Ballot, msg.State);
             this.bus.NotifyUpdateAccepted(proposerId, msg.ReqID);
         }
-        
+
+        public async Task RmTx(string clientId, RmTxMessage msg)
+        {
+            await this.storage.RmTx(msg.TxID);
+        }
+
         private async Task Execute(Tx tx)
         {
             try

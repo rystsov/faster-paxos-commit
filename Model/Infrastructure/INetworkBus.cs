@@ -33,7 +33,8 @@ namespace Model.Infrastructure
         
         void RollbackTx(string shardId, RollbackSubTxMessage msg);
         void NotifyExecutionConflicted(string clientId, ExecutionConflictedMessage msg);
-        void RmTx(string proposerId, RmTxMessage msg);
+        
+        void RmTx(string acceptorId, RmTxMessage msg);
         
         void Promise(string acceptorId, PromiseMessage promiseMessage);
         IHandler WaitForPromiseAccepted(string reqId, Func<PromiseAcceptedMessage, string, WaitStrategy> handler);

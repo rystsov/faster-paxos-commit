@@ -57,19 +57,7 @@ namespace Model.Services.Client
                 this.bus.ExecuteSubTx(shardId, subTx);
             }
             
-            this.timer.SetTimeout(() =>
-            {
-                lock (localMutex)
-                {
-                    if (!hasFinished)
-                    {
-                        hasFinished = true;
-                        result.SetException(new TxUnknownException(txId));
-                    }
-                }
-            }, timeoutMs);
-            
-            this.bus.WaitForExecutionAccepted(txId, (msg, acceptorId) =>
+            var handler1 =  this.bus.WaitForExecutionAccepted(txId, (msg, acceptorId) =>
             {
                 lock (localMutex)
                 {
@@ -87,8 +75,8 @@ namespace Model.Services.Client
                     return WaitStrategy.KeepWaiting;
                 }
             });
-
-            this.bus.WaitForExecutionConflicted(txId, (msg, shardId) =>
+            
+            var handler2 = this.bus.WaitForExecutionConflicted(txId, (msg, shardId) =>
             {
                 lock (localMutex)
                 {
@@ -100,6 +88,20 @@ namespace Model.Services.Client
                     return WaitStrategy.StopWaiting;
                 }
             });
+            
+            this.timer.SetTimeout(() =>
+            {
+                lock (localMutex)
+                {
+                    if (!hasFinished)
+                    {
+                        hasFinished = true;
+                        result.SetException(new TxUnknownException(txId));
+                        handler1.Dispose();
+                        handler2.Dispose();
+                    }
+                }
+            }, timeoutMs);
             
             return result.Task;
         }
@@ -114,18 +116,8 @@ namespace Model.Services.Client
             var hasFinished = false;
 
             this.bus.AbortTx(proposerId, new TxAbortMessage(reqId, txId));
-
-            this.timer.SetTimeout(() =>
-            {
-                lock (localMutex)
-                {
-                    if (hasFinished) return;
-                    hasFinished = true;
-                    result.SetException(new TxUnknownException(txId));
-                }
-            }, timeoutMs);
             
-            this.bus.WaitForAbortConfirmed(reqId, (msg, senderId) =>
+            var handler1 = this.bus.WaitForAbortConfirmed(reqId, (msg, senderId) =>
             {
                 lock (localMutex)
                 {
@@ -138,7 +130,7 @@ namespace Model.Services.Client
                 }
             });
 
-            this.bus.WaitForAbortFailed(reqId, (msg, senderId) =>
+            var handler2 = this.bus.WaitForAbortFailed(reqId, (msg, senderId) =>
             {
                 lock (localMutex)
                 {
@@ -150,6 +142,18 @@ namespace Model.Services.Client
                     return WaitStrategy.StopWaiting;
                 }
             });
+
+            this.timer.SetTimeout(() =>
+            {
+                lock (localMutex)
+                {
+                    if (hasFinished) return;
+                    hasFinished = true;
+                    result.SetException(new TxUnknownException(txId));
+                    handler1.Dispose();
+                    handler2.Dispose();
+                }
+            }, timeoutMs);
             
             var shardIds = await result.Task;
             
@@ -174,17 +178,7 @@ namespace Model.Services.Client
 
             // OPUS NASA
             
-            this.timer.SetTimeout(() =>
-            {
-                lock (localMutex)
-                {
-                    if (hasFinished) return;
-                    hasFinished = true;
-                    result.SetException(new SomeException());
-                }
-            }, timeoutMs);
-            
-            this.bus.WaitForTxStatusFetched(reqId, (msg, senderId) =>
+            var handler1 = this.bus.WaitForTxStatusFetched(reqId, (msg, senderId) =>
             {
                 lock (localMutex)
                 {
@@ -197,6 +191,17 @@ namespace Model.Services.Client
                     return WaitStrategy.StopWaiting;
                 }
             });
+            
+            this.timer.SetTimeout(() =>
+            {
+                lock (localMutex)
+                {
+                    if (hasFinished) return;
+                    hasFinished = true;
+                    result.SetException(new SomeException());
+                    handler1.Dispose();
+                }
+            }, timeoutMs);
 
             return result.Task;
         }
@@ -216,17 +221,7 @@ namespace Model.Services.Client
                 this.bus.MarkSubTxCommitted(shardId, new MarkTxComittedMessage(reqId, txId, keyValueUpdateByShard[shardId]));
             }
             
-            this.timer.SetTimeout(() =>
-            {
-                lock (localMutex)
-                {
-                    if (hasFinished) return;
-                    hasFinished = true;
-                    result.SetException(new SomeException());
-                }
-            }, timeoutMs);
-            
-            this.bus.WaitForSubTxMarkedCommitted(reqId, (msg, shardId) =>
+            var handler1 = this.bus.WaitForSubTxMarkedCommitted(reqId, (msg, shardId) =>
             {
                 lock (localMutex)
                 {
@@ -242,6 +237,17 @@ namespace Model.Services.Client
                     return WaitStrategy.StopWaiting;
                 }
             });
+            
+            this.timer.SetTimeout(() =>
+            {
+                lock (localMutex)
+                {
+                    if (hasFinished) return;
+                    hasFinished = true;
+                    result.SetException(new SomeException());
+                    handler1.Dispose();
+                }
+            }, timeoutMs);
 
             await result.Task;
             

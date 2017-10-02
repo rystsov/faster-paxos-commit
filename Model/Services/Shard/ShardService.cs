@@ -52,18 +52,8 @@ namespace Model.Services.Shard
             {
                 this.bus.CommitTx(acceptorID, confirmation.Clone());
             }
-                
-            this.timer.SetTimeout(() =>
-            {
-                lock (localMutex)
-                {
-                    if (hasFinished) return;
-                     hasFinished = true;
-                     result.SetException(new AbortException());
-                }
-            }, timeoutMs);
-
-            this.bus.WaitForSubTxAccepted(msg.TxID, (subTxAccepted, acceptorId) =>
+            
+            var handler1 = this.bus.WaitForSubTxAccepted(msg.TxID, (subTxAccepted, acceptorId) =>
             {
                 lock (localMutex)
                 {
@@ -79,6 +69,17 @@ namespace Model.Services.Shard
                     return WaitStrategy.StopWaiting;
                 }
             });
+                
+            this.timer.SetTimeout(() =>
+            {
+                lock (localMutex)
+                {
+                    if (hasFinished) return;
+                    hasFinished = true;
+                    result.SetException(new AbortException());
+                    handler1.Dispose();
+                }
+            }, timeoutMs);
 
             Dictionary<string, string> update;
 

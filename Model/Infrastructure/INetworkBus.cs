@@ -11,23 +11,23 @@ namespace Model.Infrastructure
         string SelfID { get; }
 
         void ExecuteSubTx(string shardId, InitiateTxMessage msg);
-        void WaitForExecutionAccepted(string reqId, Func<ExecutionAcceptedMessage, string, WaitStrategy> handler);
-        void WaitForExecutionConflicted(string reqId, Func<ExecutionConflictedMessage, string, WaitStrategy> handler);
+        IHandler WaitForExecutionAccepted(string reqId, Func<ExecutionAcceptedMessage, string, WaitStrategy> handler);
+        IHandler WaitForExecutionConflicted(string reqId, Func<ExecutionConflictedMessage, string, WaitStrategy> handler);
         void NotifyExecutionAccepted(string clientId, string reqId, ExecutionAcceptedMessage msg);
         
         void MarkSubTxCommitted(string shardId, MarkTxComittedMessage msg);
         void NotifySubTxMarkedCommitted(string clientId, SubTxMarkedComittedMessage msg);
-        void WaitForSubTxMarkedCommitted(string reqId, Func<SubTxMarkedComittedMessage, string, WaitStrategy> handler);
+        IHandler WaitForSubTxMarkedCommitted(string reqId, Func<SubTxMarkedComittedMessage, string, WaitStrategy> handler);
         
         void FetchTxStatus(string proposerId, FetchTxStatusMessage msg);
-        void WaitForTxStatusFetched(string reqId, Func<TxStatusFetchedMessage, string, WaitStrategy> handler);
+        IHandler WaitForTxStatusFetched(string reqId, Func<TxStatusFetchedMessage, string, WaitStrategy> handler);
         
         void AbortTx(string proposerId, TxAbortMessage msg);
-        void WaitForAbortConfirmed(string reqId, Func<AbortConfirmedMessage, string, WaitStrategy> handler);
-        void WaitForAbortFailed(string reqId, Func<AbortFailedMessage, string, WaitStrategy> handler);
+        IHandler WaitForAbortConfirmed(string reqId, Func<AbortConfirmedMessage, string, WaitStrategy> handler);
+        IHandler WaitForAbortFailed(string reqId, Func<AbortFailedMessage, string, WaitStrategy> handler);
         
         void CommitTx(string acceptorId, CommitTxMessage msg);
-        void WaitForSubTxAccepted(string reqId, Func<SubTxAcceptedMessage, string, WaitStrategy> handler);
+        IHandler WaitForSubTxAccepted(string reqId, Func<SubTxAcceptedMessage, string, WaitStrategy> handler);
         void NotifySubTxAccepted(string shardId, string reqId, SubTxAcceptedMessage msg);
         
         void PrepareTxArguments(string acceptorId, PrepareTxArgumentsMessage msg);
@@ -35,5 +35,7 @@ namespace Model.Infrastructure
         void RollbackTx(string shardId, RollbackSubTxMessage msg);
         void NotifyExecutionConflicted(string clientId, ExecutionConflictedMessage msg);
         void RmTx(string proposerId, RmTxMessage msg);
+        
+        void Propose(string acceptorId, string reqId, ProposeMessage proposeMessage);
     }
 }
